@@ -1,4 +1,4 @@
 {
     "ai.azureml.defaultWorkspaceId": "/subscriptions/2b36dfa8-0ad0-465d-95c6-f0f74afa7a05/resourceGroups/DP-100/providers/Microsoft.MachineLearningServices/workspaces/erdemsirel",
-    "jupyter.jupyterServerType": "local"
+    "jupyter.jupyterServerType": "remote"
 }
