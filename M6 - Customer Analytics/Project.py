@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # ---
 # jupyter:
 #   jupytext:
@@ -18,6 +19,7 @@ import pandas as pd
 pd.set_option("display.max_rows", 500)
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.optimize as optimize
 
 from sklearn import metrics
 from sklearn.linear_model import LinearRegression, LogisticRegression, LogisticRegressionCV
@@ -151,7 +153,211 @@ ax.plot(X+1,100*regressor2.predict(X1), label="Quadratic", linestyle='-.')
 #exp
 ax.plot(X+1,100*np.exp(regressor3.predict(X)), label="Exponential", linestyle='--')
 ax.legend(loc='best')
-plt.show()m
+plt.show()
+
+
+# ### Geometric Model
+# a) assuming each year, every customer purchases with probability
+
+def GeoLL(theta,sData):
+    N=len(sData)
+    nCust=sData["Number of Custumer"].values
+
+    nLost=np.zeros(N)
+    nLost[0]=0
+    for k in range(1,N):
+        nLost[k]= nCust[k-1]-nCust[k]
+
+    P_die=np.zeros(N)
+    for k in range(1,N):
+        P_die[k]= theta*((1-theta)**(k-1))
+
+    S_t=np.zeros(N)
+    S_t[0]=1
+    for k in range(1,N):
+        S_t[k]= S_t[k-1]-P_die[k]
+
+    LL=0
+    for k in range(1,N):
+        LL+= np.log(P_die[k])* nLost[k]
+    LL+=np.log(S_t[-1])* nCust[-1]
+    return -LL
+
+
+survival_rates
+
+initial_guess = [0.5]
+bnds = ((0.001, 0.999),)
+res= optimize.minimize(GeoLL,initial_guess,args=(survival_rates),bounds=bnds)
+res.x
+
+prob = res.x[0]
+N=9
+P_die=np.zeros(N)
+for k in range(1,N):
+ P_die[k]= prob*((1-prob)**(k-1))
+S_t=np.zeros(N)
+S_t[0]=1
+for k in range(1,N):
+ S_t[k]= S_t[k-1]-P_die[k]
+S_t
+
+
+X = survival_rates.term.values.reshape(-1, 1)
+y = survival_rates["Survival Rate"].values
+fig = plt.figure()
+ax = fig.add_subplot(111)
+fig.subplots_adjust(top=0.85)
+#ax.set_title('axes title')
+ax.set_xlabel('Tenure (years)')
+ax.set_ylabel('% Surviving')
+ax.axvline(x=9.5, color='r', linestyle='--')
+ax.axis([0, 13, 0, 110])
+ax.set_xticks(np.arange(0, 14, 1.0))
+#actual
+ax.plot(X+1,100*y, label="Actual",linestyle='-')
+#geo
+ax.plot(X+1,100*S_t, label="Geometric", linestyle=':')
+ax.legend(loc='best')
+plt.show()
+
+prob = res.x
+N=14
+P_die=np.zeros(N)
+for k in range(1,N):
+ P_die[k]= prob*((1-prob)**(k-1))
+S_t=np.zeros(N)
+S_t[0]=1
+for k in range(1,N):
+ S_t[k]= S_t[k-1]-P_die[k]
+S_t
+
+
+survival_rates_all
+
+# +
+X = survival_rates_all.term.values.reshape(-1, 1)
+y = survival_rates_all["Survival Rate"].values
+
+fig = plt.figure()
+ax = fig.add_subplot(111)
+fig.subplots_adjust(top=0.85)
+#ax.set_title('axes title')
+ax.set_xlabel('Tenure (years)')
+ax.set_ylabel('% Surviving')
+ax.axvline(x=9.5, color='r', linestyle='--')
+ax.axis([0, 13, 0, 110])
+ax.set_xticks(np.arange(0, 14, 1.0))
+#actual
+ax.plot(X+1,100*y, label="Actual",linestyle='-')
+#geo
+ax.plot(X+1,100*S_t, label="Geometric", linestyle=':')
+ax.legend(loc='best')
+plt.show()
+
+# -
+
+# ### Beta Geometric
+# b) assuming each year customer 𝑖 purchases with probability 𝑝i
+
+def BetaGeoLL(params, sData):
+    gamma, delta= params
+    N=len(sData)
+    nCust=sData["Number of Custumer"].values
+
+    nLost=np.zeros(N)
+    nLost[0]=0
+    for k in range(1,N):
+        nLost[k]= nCust[k-1]-nCust[k]
+
+    P_die=np.zeros(N)
+    P_die[1]=gamma/(gamma+delta)
+    for k in range(2,N):
+        P_die[k]= P_die[k-1]*(delta+k-2)/(gamma+delta+k-1)
+
+    S_t=np.zeros(N)
+    S_t[0]=1
+    for k in range(1,N):
+        S_t[k]= S_t[k-1]-P_die[k]
+
+    LL=0
+    for k in range(1,N):
+        LL+= np.log(P_die[k])* nLost[k]
+    LL+=np.log(S_t[-1])* nCust[-1]
+    return -LL
+
+
+initial_guess = [1, 1]
+bnds = ((0.001, None), (0.001, None))
+res= optimize.minimize(BetaGeoLL,initial_guess,args=(survival_rates),bounds=bnds)
+res.x
+
+gamma, delta= res.x
+N=len(survival_rates_all)
+####
+P_die=np.zeros(N)
+P_die[1]=gamma/(gamma+delta)
+for k in range(2,N):
+    P_die[k]= P_die[k-1]*(delta+k-2)/(gamma+delta+k-1)
+####
+S_t=np.zeros(N)
+S_t[0]=1
+for k in range(1,N):
+    S_t[k]= S_t[k-1]-P_die[k]
+S_t
+
+# +
+X = survival_rates_all.term.values.reshape(-1, 1)
+y = survival_rates_all["Survival Rate"].values
+
+fig = plt.figure()
+ax = fig.add_subplot(111)
+fig.subplots_adjust(top=0.85)
+#ax.set_title('axes title')
+ax.set_xlabel('Tenure (years)')
+ax.set_ylabel('% Surviving')
+ax.axvline(x=9.5, color='r', linestyle='--')
+ax.axis([0, 13, 0, 110])
+ax.set_xticks(np.arange(0, 14, 1.0))
+#actual
+ax.plot(X+1,100*y, label="Actual",linestyle='-')
+#geo
+ax.plot(X+1,100*S_t, label="BetaGeometric", linestyle=':')
+ax.legend(loc='best')
+plt.show()
+# -
+# ### Pareto NBD
+# d) assuming each year customer purchases with probability 𝑝𝑖 and churns with probability 𝜃𝑖
+
+import lifetimes
+
+data_melt = data.melt( id_vars=["Customer ID"], 
+          var_name="Month",
+          value_name='trx_flag',)
+data_melt["Month"] = pd.to_datetime(data_melt["Month"])
+data_melt = data_melt.sort_values(["Customer ID","Month"], ascending=[True, True])
+
+data_melt
+
+trx_data = data_melt[data_melt.trx_flag==1].drop("trx_flag", axis=1)
+summary = lifetimes.utils.summary_data_from_transaction_data(trx_data,
+                                                   customer_id_col="Customer ID",
+                                                  datetime_col="Month",
+                                                             freq='M')
+
+
+summary
+
+nbd = lifetimes.ParetoNBDFitter(penalizer_coef=0.0)
+
+nbd.fit(summary["frequency"], summary["recency"], summary["T"] )
+
+
+nbd
+
+from lifetimes.plotting import plot_period_transactions
+
+plot_period_transactions(nbd, max_frequency=13)
 
 # ### Cohort retention rates over months
 #
